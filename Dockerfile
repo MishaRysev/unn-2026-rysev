@@ -12,4 +12,4 @@ RUN uv sync --frozen --no-dev
 COPY bot/ ./bot/
 COPY main.py ./
 
-CMD ["uv", "run", "python", "main.py"]
+CMD [".venv/bin/python", "main.py"]
