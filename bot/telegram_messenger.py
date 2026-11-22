@@ -59,6 +59,7 @@ class TelegramMessenger(Messenger):
             "getUpdates",
             offset=offset,
             timeout=timeout,
+            limit=100,
             allowed_updates=json.dumps(["message"]),
         )
         return cast(list[dict[str, Any]], result)
