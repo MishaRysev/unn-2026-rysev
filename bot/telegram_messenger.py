@@ -19,10 +19,16 @@ class TelegramMessenger(Messenger):
             data=urllib.parse.urlencode(params).encode(),
             method="POST",
         )
-        with urllib.request.urlopen(request) as response:
-            payload = json.loads(response.read())
-        if not payload["ok"]:
-            raise RuntimeError(payload["description"])
+
+        try:
+            with urllib.request.urlopen(request) as response:
+                payload = json.loads(response.read())
+        except urllib.error.HTTPError as e:
+            payload = json.loads(e.read())
+
+        if not payload.get("ok"):
+            raise RuntimeError(payload.get("description", "Unknown Telegram API error"))
+            
         return payload["result"]
 
     def get_updates(self, offset: int, timeout: int) -> list[dict[str, Any]]:
