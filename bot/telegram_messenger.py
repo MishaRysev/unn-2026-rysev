@@ -1,5 +1,6 @@
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 from typing import Any, cast
@@ -13,18 +14,27 @@ class TelegramMessenger(Messenger):
         self.token = os.environ["TELEGRAM_TOKEN"]
 
     def _request(self, method: str, **params: object) -> Any:
-        url = f"{self.base_url}/bot{self.token}/{method}"
+        base = self.base_url.rstrip("/")
+        url = f"{base}/bot{self.token}/{method}"
+        
         request = urllib.request.Request(
             url,
             data=urllib.parse.urlencode(params).encode(),
             method="POST",
         )
 
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        
+        print(f"[DEBUG] Отправка запроса на: {url}")
+        
         try:
-            with urllib.request.urlopen(request) as response:
+            with opener.open(request, timeout=10) as response:
                 payload = json.loads(response.read())
         except urllib.error.HTTPError as e:
             payload = json.loads(e.read())
+        except urllib.error.URLError as e:
+            print(f"[ERROR] Ошибка соединения: {e.reason}")
+            raise
 
         if not payload.get("ok"):
             raise RuntimeError(payload.get("description", "Unknown Telegram API error"))
