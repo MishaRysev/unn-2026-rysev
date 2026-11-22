@@ -10,30 +10,36 @@ from .messenger import Messenger
 
 class TelegramMessenger(Messenger):
     def __init__(self) -> None:
-        self.base_url = os.environ["TELEGRAM_BASE_URL"]
-        self.token = os.environ["TELEGRAM_TOKEN"]
+        raw_base = os.environ.get("TELEGRAM_BASE_URL", "").strip()
+        if raw_base and not raw_base.startswith("http"):
+            raw_base = "http://" + raw_base
+            
+        self.base_url = raw_base.rstrip("/")
+        self.token = os.environ.get("TELEGRAM_TOKEN", "").strip()
+
+        if not self.base_url or not self.token:
+            print("[WARNING] TELEGRAM_BASE_URL или TELEGRAM_TOKEN не заданы!", flush=True)
 
     def _request(self, method: str, **params: object) -> Any:
-        base = self.base_url.rstrip("/")
-        url = f"{base}/bot{self.token}/{method}"
+        url = f"{self.base_url}/bot{self.token}/{method}"
+        print(f"[DEBUG] Отправка запроса на: {url}", flush=True)
         
         request = urllib.request.Request(
             url,
             data=urllib.parse.urlencode(params).encode(),
             method="POST",
         )
+        
+        poll_timeout = params.get("timeout", 10)
+        socket_timeout = (poll_timeout + 15) if isinstance(poll_timeout, int) else 30
 
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        
-        print(f"[DEBUG] Отправка запроса на: {url}")
-        
         try:
-            with opener.open(request, timeout=10) as response:
+            with urllib.request.urlopen(request, timeout=socket_timeout) as response:
                 payload = json.loads(response.read())
         except urllib.error.HTTPError as e:
             payload = json.loads(e.read())
-        except urllib.error.URLError as e:
-            print(f"[ERROR] Ошибка соединения: {e.reason}")
+        except Exception as e:
+            print(f"[ERROR] Сетевая ошибка: {e}", flush=True)
             raise
 
         if not payload.get("ok"):
